@@ -12,12 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 import re
 import xmlrpclib
 
 import rosgraph
 import rospy
 import rosnode
+
+from rosprofiler.srv import *
 
 from ros_topology_msgs.msg import Connection
 from ros_topology_msgs.msg import Graph
@@ -32,8 +35,10 @@ class Grapher(object):
     Only one instance of this node should be run at a time.
     Information is only published when a change is detected.
     """
-    def __init__(self, name=None):
+    def __init__(self, name=None, interval=2, verbose="false"):
         self._NAME = name or "rosgrapher"
+        self._POLL_INTERVAL = int(interval)
+        self._VERBOSE_MODE = verbose == "true"
 
         # Force singleton by not allowing name to be remapped
         if not re.findall("^/*(.+)$", rospy.get_name())[0] == self._NAME:
@@ -44,6 +49,8 @@ class Grapher(object):
         self._publisher = rospy.Publisher('/topology', Graph, queue_size=10, latch=True)
         self._poller_timer = None
 
+        self._service = rospy.Service('/topology', GetTopologyGraph, self._service_callback)
+
         # Message Sequence Number
         self._seq = 1
 
@@ -52,7 +59,7 @@ class Grapher(object):
         self._old_topics = dict()
 
     def start(self):
-        self._poller_timer = rospy.Timer(rospy.Duration(2), self._poller_callback)
+        self._poller_timer = rospy.Timer(rospy.Duration(self._POLL_INTERVAL), self._poller_callback)
 
     def stop(self):
         self._poller_timer.shutdown()
@@ -145,14 +152,33 @@ class Grapher(object):
                 rospy.logerr("WANRING: XML RPC ERROR contacting '%s', skipping" % node.name)
                 continue
 
+        if self._VERBOSE_MODE:
+            return self._update(nodes, topics)
+
         # If any nodes or topics are added removed or changed, publish update
         if not set(nodes.keys()) == set(self._old_nodes.keys()):
             return self._update(nodes, topics)
+
         if not set(topics.keys()) == set(self._old_topics.keys()):
             return self._update(nodes, topics)
+
         for name in nodes.keys():
             if not nodes[name] == self._old_nodes[name]:
                 return self._update(nodes, topics)
+
+    def _construct_graph(self, nodes, topics):
+        graph = Graph()
+        graph.header.seq = self._seq
+        graph.header.stamp = rospy.get_rostime()
+        graph.header.frame_id = "/"
+        graph.master = self._master.master_uri
+        graph.nodes.extend(nodes.values())
+        graph.topics.extend(topics.values())
+        return graph
+
+    def _service_callback(self, event):
+        graph = this._construct_graph(self, self._old_nodes, self._old_topics)
+        return GetTopologyGraphResponse(graph)
 
     def _update(self, nodes, topics):
         """ Publishes updated topology information """
@@ -160,13 +186,6 @@ class Grapher(object):
         # Save old information
         self._old_nodes = nodes
         self._old_topics = topics
-
-        graph = Graph()
-        graph.header.seq = self._seq
+        graph = this._construct_graph(self, nodes, topics)
         self._seq += 1
-        graph.header.stamp = rospy.get_rostime()
-        graph.header.frame_id = "/"
-        graph.master = self._master.master_uri
-        graph.nodes.extend(nodes.values())
-        graph.topics.extend(topics.values())
         self._publisher.publish(graph)

@@ -85,8 +85,8 @@ class Profiler(object):
         # Data Structure for collecting information about the host
         self._host_monitor = HostMonitor()
 
-        self._node_publisher = rospy.Publisher('/node_statistics', NodeStatistics, queue_size=10)
-        self._host_publisher = rospy.Publisher('/host_statistics', HostStatistics, queue_size=10)
+        self._node_publisher = rospy.Publisher('node_statistics', NodeStatistics, queue_size=10)
+        self._host_publisher = rospy.Publisher('host_statistics', HostStatistics, queue_size=10)
 
         # Processes we are watching
         self._nodes = dict()

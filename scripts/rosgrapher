@@ -29,7 +29,7 @@ def install_thread_excepthook():
     If using psyco, call psycho.cannotcompile(threading.Thread.run)
     since this replaces a new-style class method.
 
-    Gracefully handles ROSInterruptExceptions in rospy.Timer 
+    Gracefully handles ROSInterruptExceptions in rospy.Timer
     """
     run_old = rospy.Timer.run
     def run(*args, **kwargs):
