@@ -20,7 +20,7 @@ import rosgraph
 import rospy
 import rosnode
 
-from rosprofiler.srv import *
+from rosprofiler_srv.srv import *
 
 from ros_topology_msgs.msg import Connection
 from ros_topology_msgs.msg import Graph
@@ -177,7 +177,7 @@ class Grapher(object):
         return graph
 
     def _service_callback(self, event):
-        graph = this._construct_graph(self, self._old_nodes, self._old_topics)
+        graph = self._construct_graph(self._old_nodes, self._old_topics)
         return GetTopologyGraphResponse(graph)
 
     def _update(self, nodes, topics):
@@ -186,6 +186,6 @@ class Grapher(object):
         # Save old information
         self._old_nodes = nodes
         self._old_topics = topics
-        graph = this._construct_graph(self, nodes, topics)
+        graph = self._construct_graph(nodes, topics)
         self._seq += 1
         self._publisher.publish(graph)
